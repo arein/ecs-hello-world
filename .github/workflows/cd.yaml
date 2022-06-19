@@ -1,0 +1,40 @@
+name: cd
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+
+concurrency: 'cd'
+
+env:
+  TASK_DEFINITION: 'app-task'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # If CD was triggered by a CI run
+    # ensure that the CI run was actually successful
+    if: ${{ github.event.type != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      -
+        name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - 
+        name: Download task definition
+        run: |
+          aws ecs describe-task-definition --task-definition $TASK_DEFINITION --query taskDefinition > task-definition.json
+    
+      - name: Deploy to Amazon ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          service: app-service
+          cluster: app-cluster
+          wait-for-service-stability: false
