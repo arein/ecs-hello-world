@@ -15,3 +15,7 @@ provider "aws" {
 resource "aws_ecr_repository" "ecs_hello_world" {
   name = "ecs-hello-world"
 }
+
+resource "aws_ecs_cluster" "app_cluster" {
+  name = "app-cluster"
+}
