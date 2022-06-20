@@ -10,9 +10,34 @@ concurrency: 'cd'
 
 env:
   TASK_DEFINITION: 'app-task'
+  AWS_REGION: 'us-east-1'
 
 jobs:
-  deploy:
+  deploy-infra:
+    runs-on: ubuntu-latest
+    # If CD was triggered by a CI run
+    # ensure that the CI run was actually successful
+    if: ${{ github.event.type != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+      -
+        name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      - name: Terraform Init
+        id: init
+        run: terraform init
+      - name: Terraform Apply
+        id: apply
+        run: terraform apply -auto-approve -no-color
+  deploy-app:
+    needs: ['deploy-infra']
     runs-on: ubuntu-latest
     # If CD was triggered by a CI run
     # ensure that the CI run was actually successful
